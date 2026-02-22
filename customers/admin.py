@@ -2,6 +2,7 @@ from django.contrib import admin
 from .models import Customer
 from wallet.models import WalletProfile
 from lines.models import Line
+from swap.models import SwapSession
 
 
 class LineInline(admin.TabularInline):
@@ -11,6 +12,10 @@ class LineInline(admin.TabularInline):
 class WalletInline(admin.StackedInline):
     model = WalletProfile
     extra = 0
+
+# class SwapInline(admin.StackedInline):
+#     model = SwapSession
+#     extra = 0
 
 
 @admin.register(Customer)
@@ -25,6 +30,7 @@ class CustomerAdmin(admin.ModelAdmin):
         "iprs_approved",
         "fraud_location",
         "created_at",
+        'id_photo',
     )
 
     search_fields = ("msisdn", "id_number", "full_name")

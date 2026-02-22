@@ -24,6 +24,9 @@ class Customer(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # mimic iprs here
+    id_photo = models.ImageField(upload_to='user_references/', null=True, blank=True)
+
     def save(self, *args, **kwargs):
         self.msisdn = normalize_msisdn(self.msisdn)
         super().save(*args, **kwargs)

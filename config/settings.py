@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
+import tempfile
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -24,6 +25,16 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY")
+
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  
+FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+TEMP_VIDEO_DIR = os.path.join(BASE_DIR, 'tmp_videos')
+if not os.path.exists(TEMP_VIDEO_DIR):
+    os.makedirs(TEMP_VIDEO_DIR)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG") == "True"

@@ -1,4 +1,5 @@
 from django.db import models
+from customers.models import Customer
 
 class SwapSession(models.Model):
     STAGES = [
@@ -14,6 +15,10 @@ class SwapSession(models.Model):
         ("COMPLETED", "Completed"),
         ("LOCKED", "Locked"),
     ]
+
+    # customer = models.ForeignKey(Customer, 
+    #     null=True, 
+    #     blank=True, on_delete=models.CASCADE)
 
     line = models.ForeignKey("lines.Line", on_delete=models.CASCADE)
     stage = models.CharField(max_length=50, choices=STAGES)
