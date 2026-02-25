@@ -1,17 +1,17 @@
-from django.shortcuts import render
-
 from vetting.services.primary import evaluate_primary
+from vetting.services.secondary import evaluate_secondary
 from swap.services.lock import lock_session
 from swap.models import SwapSession
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from vetting.serializers import PrimarySerializer, SecondarySerializer
 from rest_framework.parsers import MultiPartParser, FormParser
-
+from rest_framework import status
+from swap.services.didit import verify_didit_signature, create_didit_session
 from vetting.services.biometric import validate_face, validate_id
+from django.db import transaction
 
 class PrimaryVettingView(APIView):
-
     def post(self, request):
         serializer = PrimarySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -36,20 +36,19 @@ class PrimaryVettingView(APIView):
                 "locked": True,
                 "redirect": "retail"
             })
-
+        
         session.stage = "PRIMARY_PASSED"
         session.save()
 
+        # Call Didit
+        didit_response = create_didit_session(session)
         return Response({
             "passed": True,
-            "next_step": "FACE"
+            "next_step": "DIDIT",
+            "didit_session": didit_response
         })
 
-
-from vetting.services.secondary import evaluate_secondary
-
 class SecondaryVettingView(APIView):
-
     def post(self, request):
         serializer = SecondarySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -196,3 +195,57 @@ class IDScanView(APIView):
 
         return Response({"passed": False, "remaining_attempts": 1})
 
+class DiditWebhookView(APIView):
+
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+
+        # 1️⃣ Verify signature
+        if not verify_didit_signature(request):
+            return Response(
+                {"error": "Invalid signature"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        didit_session_id = request.data.get("session_id")
+        verification_status = request.data.get("status")
+
+        if not didit_session_id:
+            return Response(
+                {"error": "Missing session_id"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            session = SwapSession.objects.select_for_update().get(
+                didit_session_id=didit_session_id
+            )
+        except SwapSession.DoesNotExist:
+            return Response(
+                {"error": "Session not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        with transaction.atomic():
+
+            # 2️⃣ Store raw payload (audit requirement)
+            session.didit_payload = request.data
+            session.didit_status = verification_status
+
+            # 3️⃣ Stage handling
+            if verification_status == "approved":
+                session.stage = "DIDIT_PASSED"
+
+            elif verification_status == "on_review":
+                # TEMPORARY LOGIC — treat as passed
+                session.stage = "DIDIT_PASSED"
+
+            else:
+                session.stage = "DIDIT_FAILED"
+                lock_session(session, "DIDIT_FAILED")
+
+            session.save()
+
+        return Response({"ok": True})

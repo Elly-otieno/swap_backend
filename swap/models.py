@@ -6,6 +6,9 @@ class SwapSession(models.Model):
         ("STARTED", "Started"),
         ("PRIMARY_FAILED", "Primary Failed"),
         ("PRIMARY_PASSED", "Primary Passed"),
+        ("DIDIT_PENDING", "Didit Pending"),
+        ("DIDIT_FAILED", "Didit Failed"),
+        ("DIDIT_PASSED", "Didit Passed"),
         ("SECONDARY_FAILED", "Secondary Failed"),
         ("SECONDARY_PASSED", "Secondary Passed"),
         ("FACE_FAILED", "Face Failed"),
@@ -29,6 +32,10 @@ class SwapSession(models.Model):
     id_attempts = models.IntegerField(default=0)
 
     is_locked = models.BooleanField(default=False)
+
+    didit_session_id = models.CharField(max_length=255, null=True, blank=True)
+    didit_status = models.CharField(max_length=50, null=True, blank=True)
+    didit_payload = models.JSONField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

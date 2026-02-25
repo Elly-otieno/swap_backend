@@ -52,6 +52,15 @@ class StartSwapView(APIView):
             "next_step": "PRIMARY"
         })
 
+class SwapSessionStatusView(APIView):
+    def get(self, request, session_id):
+        session = SwapSession.objects.get(id=session_id)
+
+        return Response({
+            "stage": session.stage,
+            "locked": session.is_locked,
+        })
+
 class CompleteSwapView(APIView):
 
     def post(self, request):

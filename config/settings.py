@@ -26,6 +26,14 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY")
 
+# DIDIT
+DIDIT_API_KEY = os.getenv("DIDIT_API_KEY")
+DIDIT_BASE_URL = "https://api.didit.me"
+DIDIT_WEBHOOK_SECRET = os.getenv("DIDIT_WEBHOOK_SECRET")
+DIDIT_WORKFLOW_ID = os.getenv("DIDIT_WORKFLOW_ID")
+DIDIT_CALLBACK_URL = os.getenv("DIDIT_CALLBACK_URL")
+
+
 DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  
 FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800
 
