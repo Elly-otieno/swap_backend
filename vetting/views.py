@@ -214,11 +214,12 @@ class IDScanView(APIView):
         return Response({"passed": False, "remaining_attempts": 1})
 
 class DiditWebhookView(APIView):
-
-    authentication_classes = []
-    permission_classes = []
-
     def post(self, request):
+
+        print("Webhook HIT")
+        print("Headers:", request.headers)
+        print("Body:", request.body)
+        print("Parsed data:", request.data)
 
         # 1️⃣ Verify signature
         if not verify_didit_signature(request):
@@ -228,7 +229,7 @@ class DiditWebhookView(APIView):
             )
 
         didit_session_id = request.data.get("session_id")
-        verification_status = request.data.get("status")
+        verification_status = request.data.get("status", "").strip().lower()
 
         if not didit_session_id:
             return Response(
@@ -247,12 +248,9 @@ class DiditWebhookView(APIView):
             )
 
         with transaction.atomic():
-
-            # 2️⃣ Store raw payload (audit requirement)
             session.didit_payload = request.data
             session.didit_status = verification_status
 
-            # 3️⃣ Stage handling
             if verification_status == "approved":
                 session.stage = "DIDIT_PASSED"
 

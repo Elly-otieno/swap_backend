@@ -20,7 +20,6 @@ def create_didit_session(session):
         "Content-Type": "application/json"
     }
 
-    print('payload', payload)
     response = requests.post(DIDIT_URL, json=payload, headers=headers, timeout=10)
 
     if response.status_code != 201:
@@ -30,14 +29,16 @@ def create_didit_session(session):
     data = response.json()
     
     with transaction.atomic():
-        session.didit_session_id = data.get("session_token")
+        session.didit_session_id = data.get("session_id")
         session.stage = "DIDIT_PENDING"
         session.save()
 
     return data
 
 def verify_didit_signature(request):
-    received_signature = request.headers.get("X-Didit-Signature")
+    received_signature = request.headers.get("X-Signature")
+    if not received_signature:
+        return False
 
     expected_signature = hmac.new(
         settings.DIDIT_WEBHOOK_SECRET.encode(),

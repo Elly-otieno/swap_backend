@@ -76,7 +76,7 @@ class CompleteSwapView(APIView):
     def post(self, request):
         session = SwapSession.objects.get(id=request.data["session_id"])
 
-        if session.stage != "ID_PASSED":
+        if session.stage != "DIDIT_PASSED":
             return Response({"error": "Invalid stage"}, status=400)
 
         session.stage = "COMPLETED"
