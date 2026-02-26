@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from swap.views import StartSwapView
 from vetting.views import (
     PrimaryVettingView,
@@ -22,4 +22,5 @@ urlpatterns = [
     path("all/", AllCustomersView.as_view(), name="all-customers"),
     path("didit/webhook/", DiditWebhookView.as_view(), name="didit-webhook"),
     path("swap/session/<int:session_id>/", SwapSessionStatusView.as_view(), name="session-status"),
+    path("api/v1/blockchain/", include('blockchain.urls')),
 ]

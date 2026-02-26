@@ -1,8 +1,13 @@
 import cv2
 import numpy as np
-import face_recognition
 
 def validate_face(session, uploaded_image):
+    try:
+        import face_recognition
+    except Exception:
+        # Fallback if library is missing
+        return False, "Biometric verification library not correctly installed."
+
     try:
         customer = session.line.customer
         if not customer or not customer.id_photo:
@@ -70,4 +75,3 @@ def validate_id(scan_data):
         return True
 
     return False
-
