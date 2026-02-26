@@ -40,6 +40,10 @@ class PrimaryVettingView(APIView):
         session.stage = "PRIMARY_PASSED"
         session.save()
 
+        # Blockchain integration: record verification
+        from blockchain.services import blockchain_service
+        blockchain_service.record_verification(str(session.id), "PERSONAL_DETAILS")
+
         # Call Didit
         didit_response = create_didit_session(session)
         return Response({
@@ -73,6 +77,10 @@ class SecondaryVettingView(APIView):
         if passed:
             session.stage = "SECONDARY_PASSED"
             session.save()
+
+            # Blockchain integration: record verification
+            from blockchain.services import blockchain_service
+            blockchain_service.record_verification(str(session.id), "SECURITY_QUESTIONS")
 
             return Response({
                 "passed": True,
@@ -147,6 +155,11 @@ class FaceScanView(APIView):
         if passed:
             session.stage = "FACE_PASSED"
             session.save()
+
+            # Blockchain integration: record verification
+            from blockchain.services import blockchain_service
+            blockchain_service.record_verification(str(session.id), "BIOMETRIC")
+
             return Response({
                 "passed": True, 
                 "next_step": "ID",
@@ -184,6 +197,11 @@ class IDScanView(APIView):
         if validate_id(request.data):
             session.stage = "ID_PASSED"
             session.save()
+
+            # Blockchain integration: record verification
+            from blockchain.services import blockchain_service
+            blockchain_service.record_verification(str(session.id), "ID_DOCUMENT")
+
             return Response({"passed": True, "next_step": "COMPLETE"})
 
         if session.id_attempts >= 2:
@@ -236,9 +254,17 @@ class DiditWebhookView(APIView):
             if verification_status == "approved":
                 session.stage = "DIDIT_PASSED"
 
+                # Blockchain integration: record verification
+                from blockchain.services import blockchain_service
+                blockchain_service.record_verification(str(session.id), "BIOMETRIC_AND_ID")
+
             elif verification_status == "on_review":
                 # TEMPORARY LOGIC — treat as passed
                 session.stage = "DIDIT_PASSED"
+
+                # Blockchain integration: record verification
+                from blockchain.services import blockchain_service
+                blockchain_service.record_verification(str(session.id), "BIOMETRIC_AND_ID")
 
             else:
                 session.stage = "DIDIT_FAILED"

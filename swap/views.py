@@ -46,6 +46,16 @@ class StartSwapView(APIView):
 
         log_audit(msisdn, "SWAP_STARTED")
 
+        # Blockchain Integration: Initiate SIM swap
+        from blockchain.services import blockchain_service
+        blockchain_service.initiate_sim_swap(
+            str(session.id),
+            str(line.customer.id),
+            msisdn,
+            "old_sim_serial_mock", # In real app, get from line
+            "new_sim_serial_mock"  # In real app, get from request
+        )
+
         return Response({
             "allowed": True,
             "session_id": session.id,
@@ -72,7 +82,11 @@ class CompleteSwapView(APIView):
         session.stage = "COMPLETED"
         session.save()
 
-        from blockchain.services import log_event
-        log_event("SWAP_COMPLETED", session.line.msisdn)
+        from blockchain.services import blockchain_service
+        # Legacy support
+        blockchain_service.log_event("SWAP_COMPLETED", session.line.msisdn)
+
+        # Real blockchain approval
+        blockchain_service.approve_sim_swap(str(session.id))
 
         return Response({"success": True})
