@@ -8,6 +8,7 @@ from swap.models import SwapSession
 from swap.serializers import StartSwapSerializer
 from swap.services.eligibility import is_swap_allowed
 from audit.services import log_audit
+from blockchain.services import blockchain_service
 
 class StartSwapView(APIView):
 
@@ -47,19 +48,26 @@ class StartSwapView(APIView):
         log_audit(msisdn, "SWAP_STARTED")
 
         # Blockchain Integration: Initiate SIM swap
-        from blockchain.services import blockchain_service
-        blockchain_service.initiate_sim_swap(
-            str(session.id),
-            str(line.customer.id),
-            msisdn,
-            "old_sim_serial_mock", # In real app, get from line
-            "new_sim_serial_mock"  # In real app, get from request
+        old_sim_serial = "old_sim_serial_mock"
+        new_sim_serial = "new_sim_serial_mock"
+
+        swap_result = blockchain_service.initiate_sim_swap(
+            request_id=str(session.id),
+            user_id=str(line.customer.id),
+            phone_number=msisdn,
+            old_sim_serial=old_sim_serial,
+            new_sim_serial=new_sim_serial
         )
+
+        session.swap_id = swap_result.get("swapId") or "0x0"
+        session.save()
 
         return Response({
             "allowed": True,
             "session_id": session.id,
-            "next_step": "PRIMARY"
+            "next_step": "PRIMARY",
+            "swapId": session.swap_id,
+            "txHash": swap_result.get("txHash")
         })
 
 class SwapSessionStatusView(APIView):
@@ -79,14 +87,16 @@ class CompleteSwapView(APIView):
         if session.stage != "DIDIT_PASSED":
             return Response({"error": "Invalid stage"}, status=400)
 
+        # Mark session completed
         session.stage = "COMPLETED"
         session.save()
-
-        from blockchain.services import blockchain_service
-        # Legacy support
+        
+        # Legacy audit/logging
         blockchain_service.log_event("SWAP_COMPLETED", session.line.msisdn)
 
-        # Real blockchain approval
-        blockchain_service.approve_sim_swap(str(session.id))
+        # Real or demo blockchain approval
+        # Ensure swap_id exists for demo-safe operation
+        swap_id = getattr(session, "swap_id", str(session.id))  # fallback to session.id if missing
+        blockchain_service.approve_sim_swap(str(session.id), swap_id)
 
         return Response({"success": True})

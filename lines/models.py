@@ -12,9 +12,6 @@ class Line(models.Model):
 
     msisdn = models.CharField(max_length=15, unique=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
-
-    
-
     is_golden_number = models.BooleanField(default=False)
     is_whitelisted = models.BooleanField(default=False)
     is_prepaid = models.BooleanField(default=True)

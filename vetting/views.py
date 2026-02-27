@@ -10,6 +10,8 @@ from rest_framework import status
 from swap.services.didit import verify_didit_signature, create_didit_session
 from vetting.services.biometric import validate_face, validate_id
 from django.db import transaction
+from blockchain.services import blockchain_service
+
 
 class PrimaryVettingView(APIView):
     def post(self, request):
@@ -41,8 +43,12 @@ class PrimaryVettingView(APIView):
         session.save()
 
         # Blockchain integration: record verification
-        from blockchain.services import blockchain_service
-        blockchain_service.record_verification(str(session.id), "PERSONAL_DETAILS")
+        swap_id = str(session.swap_id) if getattr(session, "swap_id", None) else "0x0" # TODO Remove swap id for demo
+        blockchain_service.record_verification(
+            request_id=str(session.id),
+            swap_id=str(swap_id),
+            verification_type="PERSONAL_DETAILS"
+        )
 
         # Call Didit
         didit_response = create_didit_session(session)
@@ -52,170 +58,175 @@ class PrimaryVettingView(APIView):
             "didit_session": didit_response
         })
 
-class SecondaryVettingView(APIView):
-    def post(self, request):
-        serializer = SecondarySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+# class SecondaryVettingView(APIView):
+#     def post(self, request):
+#         serializer = SecondarySerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
 
-        session = SwapSession.objects.select_related(
-            "line__customer"
-        ).get(id=serializer.validated_data["session_id"])
+#         session = SwapSession.objects.select_related(
+#             "line__customer"
+#         ).get(id=serializer.validated_data["session_id"])
 
-        if session.is_locked:
-            return Response({"redirect": "retail"})
+#         if session.is_locked:
+#             return Response({"redirect": "retail"})
 
-        session.secondary_attempts += 1
+#         session.secondary_attempts += 1
 
-        wallet = session.line.customer.walletprofile
+#         wallet = session.line.customer.walletprofile
 
-        passed = evaluate_secondary(
-            session.line.customer,
-            wallet,
-            serializer.validated_data["answers"]
-        )
+#         passed = evaluate_secondary(
+#             session.line.customer,
+#             wallet,
+#             serializer.validated_data["answers"]
+#         )
 
-        if passed:
-            session.stage = "SECONDARY_PASSED"
-            session.save()
+#         if passed:
+#             session.stage = "SECONDARY_PASSED"
+#             session.save()
 
-            # Blockchain integration: record verification
-            from blockchain.services import blockchain_service
-            blockchain_service.record_verification(str(session.id), "SECURITY_QUESTIONS")
+#             # Blockchain integration: record verification
+#             from blockchain.services import blockchain_service
+#             blockchain_service.record_verification(str(session.id), "SECURITY_QUESTIONS")
 
-            return Response({
-                "passed": True,
-                "next_step": "FACE"
-            })
+#             return Response({
+#                 "passed": True,
+#                 "next_step": "FACE"
+#             })
 
-        if session.secondary_attempts >= 2:
-            lock_session(session, "SECONDARY_FAILED")
+#         if session.secondary_attempts >= 2:
+#             lock_session(session, "SECONDARY_FAILED")
 
-            return Response({
-                "passed": False,
-                "locked": True,
-                "redirect": "retail"
-            })
+#             return Response({
+#                 "passed": False,
+#                 "locked": True,
+#                 "redirect": "retail"
+#             })
 
-        session.stage = "SECONDARY_FAILED"
-        session.save()
+#         session.stage = "SECONDARY_FAILED"
+#         session.save()
 
-        return Response({
-            "passed": False,
-            "remaining_attempts": 1
-        })
+#         return Response({
+#             "passed": False,
+#             "remaining_attempts": 1
+#         })
 
-class FaceScanView(APIView):
-    parser_classes = [MultiPartParser, FormParser]
+# class FaceScanView(APIView):
+#     parser_classes = [MultiPartParser, FormParser]
 
-    def post(self, request):
-        session_id = request.data.get("session_id")
-        # Matches the 'face_image' key  used in FormData
-        uploaded_image = request.FILES.get("face_image") 
+#     def post(self, request):
+#         session_id = request.data.get("session_id")
+#         # Matches the 'face_image' key  used in FormData
+#         uploaded_image = request.FILES.get("face_image") 
     
-        if uploaded_image:
-            print("--- IMAGE DEBUG ---")
-            print(f"File Name: {uploaded_image.name}")
-            print(f"Content Type: {uploaded_image.content_type}")
-            print(f"Size: {uploaded_image.size} bytes")
+#         if uploaded_image:
+#             print("--- IMAGE DEBUG ---")
+#             print(f"File Name: {uploaded_image.name}")
+#             print(f"Content Type: {uploaded_image.content_type}")
+#             print(f"Size: {uploaded_image.size} bytes")
             
-            # Check if the file is empty
-            if uploaded_image.size == 0:
-                print("ERROR: Received 0 bytes. Upload failed.")
+#             # Check if the file is empty
+#             if uploaded_image.size == 0:
+#                 print("ERROR: Received 0 bytes. Upload failed.")
             
-            # Peek at the first 10 bytes to see if it's actually a JPEG
-            # JPEGs usually start with \xff\xd8
-            uploaded_image.seek(0)
-            peek = uploaded_image.read(10)
-            print(f"Header Peek: {peek}")
-            uploaded_image.seek(0) # IMPORTANT: Reset after reading!
-            print("-------------------")
-        else:
-            print("ERROR: No 'face_image' found in request.FILES")
+#             # Peek at the first 10 bytes to see if it's actually a JPEG
+#             # JPEGs usually start with \xff\xd8
+#             uploaded_image.seek(0)
+#             peek = uploaded_image.read(10)
+#             print(f"Header Peek: {peek}")
+#             uploaded_image.seek(0) # IMPORTANT: Reset after reading!
+#             print("-------------------")
+#         else:
+#             print("ERROR: No 'face_image' found in request.FILES")
 
-        if not session_id or not uploaded_image:
-            return Response(
-                {"error": "session_id and face_image are required"}, 
-                status=400
-            )
+#         if not session_id or not uploaded_image:
+#             return Response(
+#                 {"error": "session_id and face_image are required"}, 
+#                 status=400
+#             )
 
-        try:
-            session = SwapSession.objects.select_related('line__customer').get(id=session_id)
-        except SwapSession.DoesNotExist:
-            return Response({"error": "Session not found"}, status=404)
+#         try:
+#             session = SwapSession.objects.select_related('line__customer').get(id=session_id)
+#         except SwapSession.DoesNotExist:
+#             return Response({"error": "Session not found"}, status=404)
 
-        if session.is_locked:
-            return Response({"locked": True, "redirect": "retail", "message": "Account is locked."})
+#         if session.is_locked:
+#             return Response({"locked": True, "redirect": "retail", "message": "Account is locked."})
 
-        # Update attempt counter
-        session.face_attempts += 1
+#         # Update attempt counter
+#         session.face_attempts += 1
         
-        # Call the simplified image validation
-        passed, message = validate_face(session, uploaded_image)
+#         # Call the simplified image validation
+#         passed, message = validate_face(session, uploaded_image)
 
-        if passed:
-            session.stage = "FACE_PASSED"
-            session.save()
+#         if passed:
+#             session.stage = "FACE_PASSED"
+#             session.save()
 
-            # Blockchain integration: record verification
-            from blockchain.services import blockchain_service
-            blockchain_service.record_verification(str(session.id), "BIOMETRIC")
+#             # Blockchain integration: record verification
+#             from blockchain.services import blockchain_service
+#             blockchain_service.record_verification(str(session.id), "BIOMETRIC")
 
-            return Response({
-                "passed": True, 
-                "next_step": "ID",
-                "message": message
-            })
+#             return Response({
+#                 "passed": True, 
+#                 "next_step": "ID",
+#                 "message": message
+#             })
 
-        # Failure & Locking Logic
-        if session.face_attempts >= 3: # Given it's a still image, maybe allow 3 tries
-            lock_session(session, "FACE_FAILED")
-            return Response({
-                "locked": True, 
-                "redirect": "retail", 
-                "message": f"Verification failed: {message}. Please visit Safaricom retail."
-            })
+#         # Failure & Locking Logic
+#         if session.face_attempts >= 3: # Given it's a still image, maybe allow 3 tries
+#             lock_session(session, "FACE_FAILED")
+#             return Response({
+#                 "locked": True, 
+#                 "redirect": "retail", 
+#                 "message": f"Verification failed: {message}. Please visit Safaricom retail."
+#             })
 
-        session.stage = "FACE_FAILED"
-        session.save()
+#         session.stage = "FACE_FAILED"
+#         session.save()
 
-        return Response({
-            "passed": False, 
-            "remaining_attempts": 3 - session.face_attempts,
-            "message": message
-        })
+#         return Response({
+#             "passed": False, 
+#             "remaining_attempts": 3 - session.face_attempts,
+#             "message": message
+#         })
 
-class IDScanView(APIView):
+# class IDScanView(APIView):
 
-    def post(self, request):
-        session = SwapSession.objects.get(id=request.data["session_id"])
+#     def post(self, request):
+#         session = SwapSession.objects.get(id=request.data["session_id"])
 
-        if session.is_locked:
-            return Response({"redirect": "retail"})
+#         if session.is_locked:
+#             return Response({"redirect": "retail"})
 
-        session.id_attempts += 1
+#         session.id_attempts += 1
 
-        if validate_id(request.data):
-            session.stage = "ID_PASSED"
-            session.save()
+#         if validate_id(request.data):
+#             session.stage = "ID_PASSED"
+#             session.save()
 
-            # Blockchain integration: record verification
-            from blockchain.services import blockchain_service
-            blockchain_service.record_verification(str(session.id), "ID_DOCUMENT")
+#             # Blockchain integration: record verification
+#             from blockchain.services import blockchain_service
+#             blockchain_service.record_verification(str(session.id), "ID_DOCUMENT")
 
-            return Response({"passed": True, "next_step": "COMPLETE"})
+#             return Response({"passed": True, "next_step": "COMPLETE"})
 
-        if session.id_attempts >= 2:
-            lock_session(session, "ID_FAILED")
-            return Response({"locked": True, "redirect": "retail"})
+#         if session.id_attempts >= 2:
+#             lock_session(session, "ID_FAILED")
+#             return Response({"locked": True, "redirect": "retail"})
 
-        session.stage = "ID_FAILED"
-        session.save()
+#         session.stage = "ID_FAILED"
+#         session.save()
 
-        return Response({"passed": False, "remaining_attempts": 1})
+#         return Response({"passed": False, "remaining_attempts": 1})
+
 
 class DiditWebhookView(APIView):
-    def post(self, request):
+    """
+    Handles DIDIT webhook callbacks.
+    Demo-safe and fully integrates with BlockchainService.
+    """
 
+    def post(self, request):
         print("Webhook HIT")
         print("Headers:", request.headers)
         print("Body:", request.body)
@@ -251,20 +262,19 @@ class DiditWebhookView(APIView):
             session.didit_payload = request.data
             session.didit_status = verification_status
 
-            if verification_status == "approved":
+            # Determine stage and blockchain recording
+            if verification_status in ["approved", "on_review"]:
                 session.stage = "DIDIT_PASSED"
 
-                # Blockchain integration: record verification
-                from blockchain.services import blockchain_service
-                blockchain_service.record_verification(str(session.id), "BIOMETRIC_AND_ID")
-
-            elif verification_status == "on_review":
-                # TEMPORARY LOGIC — treat as passed
-                session.stage = "DIDIT_PASSED"
+                # Use swap_id if exists, else fallback to "0x0" for demo
+                swap_id = str(session.swap_id) if getattr(session, "swap_id", None) else "0x0"
 
                 # Blockchain integration: record verification
-                from blockchain.services import blockchain_service
-                blockchain_service.record_verification(str(session.id), "BIOMETRIC_AND_ID")
+                blockchain_service.record_verification(
+                    request_id=str(session.id),
+                    swap_id=swap_id,
+                    verification_type="BIOMETRIC_AND_ID"
+                )
 
             else:
                 session.stage = "DIDIT_FAILED"
