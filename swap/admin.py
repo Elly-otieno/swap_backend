@@ -11,6 +11,9 @@ class SwapSessionAdmin(admin.ModelAdmin):
         "face_attempts",
         "id_attempts",
         "is_locked",
+        "didit_session_id",
+        "didit_status",
+        "didit_payload",
         "created_at",
         "updated_at",
     )
