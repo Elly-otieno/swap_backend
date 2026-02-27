@@ -25,3 +25,6 @@ setuptools==69.5.1
 sqlparse==0.5.5
 tzdata==2025.3
 urllib3==2.6.3
+web3==7.14.1
+py-solc-x==2.0.5
+eth-account==0.13.7

@@ -1,0 +1,250 @@
+[
+  {
+    "inputs": [],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "swapId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "approver",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "SIMSwapApproved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "swapId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "phoneHash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "SIMSwapInitiated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "swapId",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum SIMSwapManager.VerificationType",
+        "name": "verificationType",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "VerificationCompleted",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "swapId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "approveSIMSwap",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "swapId",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "enum SIMSwapManager.VerificationType",
+        "name": "verificationType",
+        "type": "uint8"
+      }
+    ],
+    "name": "completeVerification",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "swapId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getSwapDetails",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "swapId",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "phoneHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "oldSimHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "newSimHash",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "enum SIMSwapManager.SwapStatus",
+            "name": "status",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "personalDetailsVerified",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "biometricVerified",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "idDocumentVerified",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "securityQuestionsVerified",
+            "type": "bool"
+          },
+          {
+            "internalType": "address",
+            "name": "approver",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "timestamp",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct SIMSwapManager.SIMSwap",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "phoneHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getUserSwapHistory",
+    "outputs": [
+      {
+        "internalType": "bytes32[]",
+        "name": "",
+        "type": "bytes32[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "phoneHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "oldSimHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "newSimHash",
+        "type": "bytes32"
+      }
+    ],
+    "name": "initiateSIMSwap",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]
