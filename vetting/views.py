@@ -259,6 +259,10 @@ class DiditWebhookView(APIView):
             )
 
         with transaction.atomic():
+            session = SwapSession.objects.select_for_update().get(
+                didit_session_id=didit_session_id
+            )
+            
             session.didit_payload = request.data
             session.didit_status = verification_status
 

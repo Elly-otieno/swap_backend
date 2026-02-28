@@ -41,8 +41,7 @@ BLOCKCHAIN_CONFIG = {
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = ['*']
-
+ALLOWED_HOSTS = ['swap-backend-mj36.onrender.com', 'localhost', '127.0.0.1']
 
 # Application definition
 
