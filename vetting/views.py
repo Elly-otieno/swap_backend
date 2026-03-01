@@ -288,14 +288,11 @@ class DiditWebhookView(APIView):
                         else "0x0"
                     )
 
-                    # Only record blockchain once
-                    if not session.blockchain_recorded:
-                        blockchain_service.record_verification(
-                            request_id=str(session.id),
-                            swap_id=swap_id,
-                            verification_type="BIOMETRIC_AND_ID"
-                        )
-                        session.blockchain_recorded = True
+                    blockchain_service.record_verification(
+                        request_id=str(session.id),
+                        swap_id=swap_id,
+                        verification_type="BIOMETRIC_AND_ID"
+                    )
 
                 else:
                     session.stage = "DIDIT_FAILED"
