@@ -220,19 +220,26 @@ class PrimaryVettingView(APIView):
 #         return Response({"passed": False, "remaining_attempts": 1})
 
 
+from django.db import transaction
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+
 class DiditWebhookView(APIView):
     """
     Handles DIDIT webhook callbacks.
-    Demo-safe and fully integrates with BlockchainService.
+    Production-safe:
+    - Signature verified
+    - Atomic transaction
+    - Row-level locking
+    - Idempotent status handling
     """
 
-    def post(self, request):
-        print("Webhook HIT")
-        print("Headers:", request.headers)
-        print("Body:", request.body)
-        print("Parsed data:", request.data)
+    authentication_classes = []
+    permission_classes = []
 
-        # 1️⃣ Verify signature
+    def post(self, request):
+        # Verify DIDIT signature
         if not verify_didit_signature(request):
             return Response(
                 {"error": "Invalid signature"},
@@ -240,7 +247,11 @@ class DiditWebhookView(APIView):
             )
 
         didit_session_id = request.data.get("session_id")
-        verification_status = request.data.get("status", "").strip().lower()
+        verification_status = (
+            request.data.get("status", "")
+            .strip()
+            .lower()
+        )
 
         if not didit_session_id:
             return Response(
@@ -249,41 +260,51 @@ class DiditWebhookView(APIView):
             )
 
         try:
-            session = SwapSession.objects.select_for_update().get(
-                didit_session_id=didit_session_id
-            )
-        except SwapSession.DoesNotExist:
-            return Response(
-                {"error": "Session not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            with transaction.atomic():
 
-        with transaction.atomic():
-            session = SwapSession.objects.select_for_update().get(
-                didit_session_id=didit_session_id
-            )
-            
-            session.didit_payload = request.data
-            session.didit_status = verification_status
-
-            # Determine stage and blockchain recording
-            if verification_status in ["approved", "on_review"]:
-                session.stage = "DIDIT_PASSED"
-
-                # Use swap_id if exists, else fallback to "0x0" for demo
-                swap_id = str(session.swap_id) if getattr(session, "swap_id", None) else "0x0"
-
-                # Blockchain integration: record verification
-                blockchain_service.record_verification(
-                    request_id=str(session.id),
-                    swap_id=swap_id,
-                    verification_type="BIOMETRIC_AND_ID"
+                # Lock row to prevent race conditions
+                session = (
+                    SwapSession.objects
+                    .select_for_update()
+                    .get(didit_session_id=didit_session_id)
                 )
 
-            else:
-                session.stage = "DIDIT_FAILED"
-                lock_session(session, "DIDIT_FAILED")
+                # Idempotency protection
+                if session.didit_status == verification_status:
+                    return Response({"ok": True})
 
-            session.save()
+                # Store payload & status
+                session.didit_payload = request.data
+                session.didit_status = verification_status
+
+                # Handle status transitions
+                if verification_status in ["approved", "on_review"]:
+
+                    session.stage = "DIDIT_PASSED"
+
+                    swap_id = (
+                        str(session.swap_id)
+                        if getattr(session, "swap_id", None)
+                        else "0x0"
+                    )
+
+                    # Only record blockchain once
+                    if not session.blockchain_recorded:
+                        blockchain_service.record_verification(
+                            request_id=str(session.id),
+                            swap_id=swap_id,
+                            verification_type="BIOMETRIC_AND_ID"
+                        )
+                        session.blockchain_recorded = True
+
+                else:
+                    session.stage = "DIDIT_FAILED"
+                    lock_session(session, "DIDIT_FAILED")
+
+                session.save()
+
+        except SwapSession.DoesNotExist:
+            # Always return 200 to prevent infinite retries
+            return Response({"ok": True})
 
         return Response({"ok": True})

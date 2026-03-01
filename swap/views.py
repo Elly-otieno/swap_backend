@@ -10,6 +10,7 @@ from swap.services.eligibility import is_swap_allowed
 from audit.services import log_audit
 from blockchain.services import blockchain_service
 from django.http import JsonResponse
+from django.db import transaction
 
 def health_check(request):
     return JsonResponse({"status": "ok"})
@@ -86,21 +87,34 @@ class SwapSessionStatusView(APIView):
 class CompleteSwapView(APIView):
 
     def post(self, request):
-        session = SwapSession.objects.get(id=request.data["session_id"])
+        session_id = request.data.get("session_id")
+        if not session_id:
+            return Response({"error": "Missing session_id"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if session.stage != "DIDIT_PASSED":
-            return Response({"error": "Invalid stage"}, status=400)
+        try:
+            with transaction.atomic():
+                # Lock row to prevent concurrent completion
+                session = SwapSession.objects.select_for_update().get(id=session_id)
 
-        # Mark session completed
-        session.stage = "COMPLETED"
-        session.save()
-        
-        # Legacy audit/logging
-        blockchain_service.log_event("SWAP_COMPLETED", session.line.msisdn)
+                # Idempotency: already completed
+                if session.stage == "COMPLETED":
+                    return Response({"success": True})
 
-        # Real or demo blockchain approval
-        # Ensure swap_id exists for demo-safe operation
-        swap_id = getattr(session, "swap_id", str(session.id))  # fallback to session.id if missing
-        blockchain_service.approve_sim_swap(str(session.id), swap_id)
+                # Only allow completion if DIDIT passed
+                if session.stage != "DIDIT_PASSED":
+                    return Response({"error": "Invalid stage"}, status=status.HTTP_400_BAD_REQUEST)
+
+                # Mark session completed
+                session.stage = "COMPLETED"
+                session.save()
+
+                blockchain_service.log_event("SWAP_COMPLETED", session.line.msisdn)
+
+                # Real or demo blockchain approval
+                swap_id = getattr(session, "swap_id", str(session.id))
+                blockchain_service.approve_sim_swap(str(session.id), swap_id)
+
+        except SwapSession.DoesNotExist:
+            return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
 
         return Response({"success": True})
