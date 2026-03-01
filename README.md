@@ -15,7 +15,7 @@ This is the core API for the Swap Secure ecosystem. It manages user sessions, va
 ```bash
 # Create and activate virtual environment
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: source venv/Scripts/activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -24,7 +24,7 @@ pip install -r requirements.txt
 ### 3. Environment Variables
 ```bash
 DEBUG=True
-SECRET_KEY=your_secret_key
+SECRET_KEY=secret_key
 DATABASE_URL=postgres://user:pass@localhost:5432/dbname
 
 # Blockchain Configuration

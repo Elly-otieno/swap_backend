@@ -9,6 +9,10 @@ from swap.serializers import StartSwapSerializer
 from swap.services.eligibility import is_swap_allowed
 from audit.services import log_audit
 from blockchain.services import blockchain_service
+from django.http import JsonResponse
+
+def health_check(request):
+    return JsonResponse({"status": "ok"})
 
 class StartSwapView(APIView):
 

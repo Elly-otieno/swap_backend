@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
-from swap.views import StartSwapView
+from swap.views import StartSwapView, health_check, CompleteSwapView, SwapSessionStatusView
 from vetting.views import (
     PrimaryVettingView,
     DiditWebhookView,
@@ -8,10 +8,10 @@ from vetting.views import (
     # FaceScanView,
     # IDScanView,
 )
-from swap.views import CompleteSwapView, SwapSessionStatusView
 from customers.views import AllCustomersView
 
 urlpatterns = [
+    path("health/", health_check),
     path('admin/', admin.site.urls),
     path("swap/start/", StartSwapView.as_view()),
     path("swap/primary/", PrimaryVettingView.as_view()),
